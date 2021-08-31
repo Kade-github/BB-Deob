@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using dnlib;
 using dnlib.DotNet;
+using System.Text.RegularExpressions;
 
 namespace BB_Deob
 {
@@ -25,7 +26,7 @@ namespace BB_Deob
             }
             Console.WriteLine("Loaded module " + module.Name + ", Runtime: " + module.RuntimeVersion);
             string bb_version = "unknown/bb obfuscator not found";
-            foreach(TypeDef type in module.Types)
+            foreach (TypeDef type in module.Types)
             {
                 if (type.Name.Contains("__BB_OBFUSCATOR_VERSION_"))
                 {
@@ -35,40 +36,53 @@ namespace BB_Deob
             Console.WriteLine("BB Obfuscator Version: " + bb_version);
             Console.WriteLine("[1] Renaming...");
             int count = 0;
-            int i = 0;
+            int classNumber = 0;
+            Regex regex = new Regex(@"[a-zA-Z0-9_]+");
             foreach (TypeDef type in module.Types)
             {
                 if (!type.Name.Contains("__BB_OBFUSCATOR_VERSION_") || !type.Name.Contains("ArrayCopy"))
                 {
                     if (type.Name != "<Module>")
                     {
-                        type.Name = "Class" + i;
-                        int ii = 0;
+                        if (!regex.IsMatch(type.Name))
+                        {
+                            type.Name = "Class" + classNumber;
+                            ++classNumber;
+                        }
+                        int fieldNumber = 0;
                         foreach (FieldDef field in type.Fields)
                         {
-                            field.Name = "Field" + ii;
-                            ii++;
+                            if (!regex.IsMatch(field.Name))
+                            {
+                                field.Name = "Field" + fieldNumber;
+                                ++fieldNumber;
+                            }
                         }
-                        int iii = 0;
-                        int iiii = 0;
+                        int paramNumber = 0;
+                        int methodNumber = 0;
                         foreach (MethodDef method in type.Methods)
                         {
                             foreach (ParamDef param in method.ParamDefs)
                             {
-                                param.Name = "Param" + iii;
-                                iii++;
+                                if (!regex.IsMatch(param.Name))
+                                {
+                                    param.Name = "Param" + paramNumber;
+                                    ++paramNumber;
+                                }
                             }
-                            method.Name = "Method" + iiii;
-                            iiii++;
+                            if (!regex.IsMatch(method.Name))
+                            {
+                                method.Name = "Method" + methodNumber;
+                                ++methodNumber;
+                            }
                         }
-                        i++;
                     }
                 }
                 count++;
                 Console.WriteLine("[1] Renaming [" + count + "/" + module.Types.Count + "]");
             }
             Console.WriteLine("[2] Watermarking...");
-            module.Name = "Renamed by Kades BB-Deob. BB Version " + bb_version;
+            module.Name += "_renamed";
             Console.WriteLine("[3] Saving...");
             module.Write(module.FullName.Split('.')[0] + "-Renamed.dll");
             Console.WriteLine("Saved to " + Directory.GetCurrentDirectory() + @"\" + module.FullName.Split('.')[0] + "-Renamed.dll");
